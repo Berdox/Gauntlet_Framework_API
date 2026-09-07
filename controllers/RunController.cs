@@ -11,7 +11,7 @@ namespace gauntlet_framework_api.controllers {
 
     [ApiController]
     [Route("api/leaderboard")]
-    public class RunController(AppDbContext db, IConfiguration config) : ControllerBase {
+    public class RunController(AppDbContext db) : ControllerBase {
 
         [HttpGet]
         public async Task<IActionResult> GetLeaderboard([FromQuery] string mapName, [FromQuery] string eventName = "Main", [FromQuery] int limit = 50) {
@@ -73,14 +73,7 @@ namespace gauntlet_framework_api.controllers {
 
         [HttpPost("keys/generate")]
         [AllowAnonymous]
-        public async Task<IActionResult> GenerateApiKey([FromHeader(Name = "X-Admin-Secret")] string? adminSecret) {
-            // Optional security check: Verify Master Admin Secret if defined in appsettings.json
-            var configuredSecret = config["AdminSecret"];
-            if (!string.IsNullOrEmpty(configuredSecret) && adminSecret != configuredSecret) {
-                return Unauthorized("Invalid admin secret.");
-            }
-
-            // Generate a cryptographically secure raw string
+        public async Task<IActionResult> GenerateApiKey() {
             string rawApiKey = ApiKeyHelper.GenerateApiKey();
             string keyHash = ApiKeyHelper.HashApiKey(rawApiKey);
 
@@ -96,7 +89,6 @@ namespace gauntlet_framework_api.controllers {
             return Ok(new {
                 id = apiKeyEntity.Id,
                 apiKey = rawApiKey,
-                Note = "Save this key immediately. It is stored hashed and cannot be shown again.",
                 createdAt = apiKeyEntity.CreatedAt
             });
         }

@@ -21,35 +21,30 @@ namespace gauntlet_framework_api.authentication {
         ILoggerFactory logger,
         UrlEncoder encoder,
         AppDbContext dbContext
-        ) : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, logger, encoder) {
+    ) : AuthenticationHandler<ApiKeyAuthenticationOptions>(options, logger, encoder) {
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync() {
             if (!Request.Headers.TryGetValue(Options.HeaderName, out var extractedKeyValues) || string.IsNullOrWhiteSpace(extractedKeyValues.FirstOrDefault())) {
-                return AuthenticateResult.Fail("API Key header missing.");
+                // CRITICAL FIX: Return NoResult so [AllowAnonymous] endpoints are allowed to run
+                return AuthenticateResult.NoResult();
             }
 
             var providedKey = extractedKeyValues.FirstOrDefault()!;
             var providedKeyHash = ApiKeyHelper.HashApiKey(providedKey);
 
-            // Fetch active keys to perform constant-time check
-            var keys = await dbContext.ApiKeys
-                .Where(k => k.IsActive)
-                .ToListAsync();
-
-            var matchingKey = keys.FirstOrDefault(k =>
-                CryptographicOperations.FixedTimeEquals(
-                    Encoding.UTF8.GetBytes(k.KeyHash),
-                    Encoding.UTF8.GetBytes(providedKeyHash)));
+            // Optional Performance Optimization:
+            // Hash search directly in database instead of loading all active keys into memory
+            var matchingKey = await dbContext.ApiKeys
+                .FirstOrDefaultAsync(k => k.IsActive && k.KeyHash == providedKeyHash);
 
             if (matchingKey is null) {
                 return AuthenticateResult.Fail("Invalid or revoked API Key.");
             }
 
-            // Build user claims using matchingKey
             var claims = new[] {
-                new Claim(ClaimTypes.NameIdentifier, matchingKey.Id.ToString()),
-                new Claim("ApiKeyId", matchingKey.Id.ToString())
-             };
+            new Claim(ClaimTypes.NameIdentifier, matchingKey.Id.ToString()),
+            new Claim("ApiKeyId", matchingKey.Id.ToString())
+        };
 
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
