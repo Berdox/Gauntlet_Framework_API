@@ -1,0 +1,36 @@
+﻿services:
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: gauntlet_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: gauntlet_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_secure_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gauntlet_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  gauntlet_framework_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gauntlet_api
+    restart: always
+    ports:
+      - "5000:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres-db;Port=5432;Database=gauntlet_db;Username=postgres;Password=your_secure_password
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

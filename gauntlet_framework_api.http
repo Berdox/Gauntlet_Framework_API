@@ -1,0 +1,47 @@
+@gauntlet_framework_api_HostAddress = http://localhost:5000
+@apiKey = 
+
+### 1. Generate a New API Key
+# Captures the returned raw key into the @apiKey global variable upon completion
+POST {{gauntlet_framework_api_HostAddress}}/api/leaderboard/keys/generate
+Content-Type: application/json
+
+> {%
+    client.global.set("apiKey", response.body.ApiKey);
+%}
+
+
+### 2. Fetch Leaderboard Records
+# Supports query parameters: mapName (required), eventName (default: Main), limit (default: 50)
+GET {{gauntlet_framework_api_HostAddress}}/api/leaderboard?mapName=mp_gauntlet&eventName=Main&limit=10
+Accept: application/json
+
+
+### 3. Post a New Run Record
+# Requires authentication via your custom ApiKey header or bearer token
+POST {{gauntlet_framework_api_HostAddress}}/api/leaderboard
+Content-Type: application/json
+Authorization: {{apiKey}}
+
+{
+  "playerUniqueID": "1001",
+  "playerName": "Pilot_BT",
+  "recordTime": 33.45,
+  "mapName": "mp_gauntlet",
+  "eventName": "Main"
+}
+
+
+### 4. Post Run Record (Alternative Header format)
+# If your custom handler expects X-Api-Key instead of Authorization
+POST {{gauntlet_framework_api_HostAddress}}/api/leaderboard
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "playerUniqueID": "1002",
+  "playerName": "Pilot_Jack",
+  "recordTime": 28.12,
+  "mapName": "mp_gauntlet",
+  "eventName": "Main"
+}
