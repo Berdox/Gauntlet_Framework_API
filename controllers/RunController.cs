@@ -14,7 +14,7 @@ namespace gauntlet_framework_api.controllers {
     public class RunController(AppDbContext db) : ControllerBase {
 
         [HttpGet]
-        public async Task<IActionResult> GetLeaderboard([FromQuery] string mapName, [FromQuery] string eventName = "Main", [FromQuery] int limit = 50) {
+        public async Task<IActionResult> GetLeaderboard([FromQuery] string mapName, [FromQuery] string eventName = "None", [FromQuery] int limit = 50) {
             var records = await db.RunRecords
                 .Where(r => r.MapName.ToLower() == mapName.ToLower() && r.EventName.ToLower() == eventName.ToLower())
                 .OrderBy(r => r.RecordTime)
@@ -25,12 +25,28 @@ namespace gauntlet_framework_api.controllers {
                     r.PlayerName,
                     r.RecordTime,
                     r.MapName,
+                    r.RouteName,
                     r.EventName,
                     r.DateTime
                 ))
                 .ToListAsync();
 
             return Ok(records);
+        }
+
+        [HttpGet("routes")]
+        public async Task<IActionResult> GetMapRoutes([FromQuery] string mapName) {
+            if (string.IsNullOrWhiteSpace(mapName))
+                return BadRequest("mapName is required.");
+
+            var routes = await db.RunRecords
+                .AsNoTracking()
+                .Where(r => EF.Functions.Like(r.MapName, mapName))
+                .Select(r => r.RouteName)
+                .Distinct()
+                .ToListAsync();
+
+            return Ok(routes);
         }
 
         [HttpPost]
@@ -41,32 +57,67 @@ namespace gauntlet_framework_api.controllers {
                 return Unauthorized("Invalid API Key identity.");
             }
 
-            var record = new RunRecord {
-                PlayerUniqueID = dto.PlayerUniqueID,
-                PlayerName = dto.PlayerName,
-                RecordTime = dto.RecordTime,
-                MapName = dto.MapName,
-                EventName = dto.EventName,
-                ApiKeyId = apiKeyId,
-                DateTime = DateTime.UtcNow
-            };
+            var existingRecord = await db.RunRecords
+                .FirstOrDefaultAsync(r =>
+                    r.PlayerUniqueID == dto.PlayerUniqueID &&
+                    r.MapName.ToLower() == dto.MapName.ToLower() &&
+                    r.RouteName.ToLower() == dto.RouteName.ToLower() &&
+                    r.EventName.ToLower() == dto.EventName.ToLower());
 
-            db.RunRecords.Add(record);
+            RunRecord targetRecord;
+
+            if (existingRecord != null) {
+                if (dto.RecordTime >= existingRecord.RecordTime) {
+                    return Ok(new RunRecordResponseDto(
+                        existingRecord.Id,
+                        existingRecord.PlayerUniqueID,
+                        existingRecord.PlayerName,
+                        existingRecord.RecordTime,
+                        existingRecord.MapName,
+                        existingRecord.RouteName,
+                        existingRecord.EventName,
+                        existingRecord.DateTime
+                    ));
+                }
+
+                existingRecord.RecordTime = dto.RecordTime;
+                existingRecord.PlayerName = dto.PlayerName;
+                existingRecord.ApiKeyId = apiKeyId;
+                existingRecord.DateTime = DateTime.UtcNow;
+
+                targetRecord = existingRecord;
+            }
+            else {
+                targetRecord = new RunRecord {
+                    PlayerUniqueID = dto.PlayerUniqueID,
+                    PlayerName = dto.PlayerName,
+                    RecordTime = dto.RecordTime,
+                    MapName = dto.MapName,
+                    RouteName = dto.RouteName,
+                    EventName = dto.EventName,
+                    ApiKeyId = apiKeyId,
+                    DateTime = DateTime.UtcNow
+                };
+
+                db.RunRecords.Add(targetRecord);
+            }
+
             await db.SaveChangesAsync();
 
             var response = new RunRecordResponseDto(
-                record.Id,
-                record.PlayerUniqueID,
-                record.PlayerName,
-                record.RecordTime,
-                record.MapName,
-                record.EventName,
-                record.DateTime
+                targetRecord.Id,
+                targetRecord.PlayerUniqueID,
+                targetRecord.PlayerName,
+                targetRecord.RecordTime,
+                targetRecord.MapName,
+                targetRecord.RouteName,
+                targetRecord.EventName,
+                targetRecord.DateTime
             );
 
             return CreatedAtAction(
                 nameof(GetLeaderboard),
-                new { mapName = record.MapName, eventName = record.EventName },
+                new { mapName = targetRecord.MapName, routeName = targetRecord.RouteName, eventName = targetRecord.EventName },
                 response
             );
         }

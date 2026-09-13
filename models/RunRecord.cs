@@ -7,7 +7,8 @@ namespace gauntlet_framework_api.models {
         public required string PlayerName { get; set; }
         public required float RecordTime { get; set; }
         public required string MapName { get; set; }
-        public string EventName { get; set; } = "Main";
+        public string RouteName { get; set; } = "Main";
+        public string EventName { get; set; } = "None";
         public DateTime DateTime { get; set; } = DateTime.UtcNow;
         public int ApiKeyId { get; set; }
     }

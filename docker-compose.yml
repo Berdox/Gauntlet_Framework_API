@@ -21,7 +21,7 @@
     build:
       context: .
       dockerfile: Dockerfile
-    image: api-gauntlet_framework_api:latest
+    image: gauntlet_framework_api:latest
     container_name: gauntlet_api
     restart: always
     ports:

@@ -10,7 +10,7 @@ namespace gauntlet_framework_api.database {
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<RunRecord>()
-                .HasIndex(r => new { r.MapName, r.EventName, r.RecordTime });
+                .HasIndex(r => new { r.PlayerUniqueID, r.MapName, r.RouteName, r.EventName });
 
             modelBuilder.Entity<ApiKey>()
                 .HasIndex(k => k.KeyHash)
