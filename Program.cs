@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using gauntlet_framework_api.authentication;
 using gauntlet_framework_api.database;
 using Microsoft.AspNetCore.HttpLogging;
@@ -22,6 +23,17 @@ builder.Services.AddHttpLogging(logging => {
                           | HttpLoggingFields.RequestQuery
                           | HttpLoggingFields.ResponseStatusCode
                           | HttpLoggingFields.Duration;
+});
+
+
+builder.Services.AddApiVersioning(options => {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true; 
+        options.ApiVersionReader = new UrlSegmentApiVersionReader();
+    }).AddApiExplorer(options => {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
 });
 
 builder.Services.AddControllers();
